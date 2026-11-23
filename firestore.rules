@@ -1,0 +1,135 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default-Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Primitives
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity Validators
+    function isValidUserAccount(data, userId) {
+      return data.keys().hasAll(['uid', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && data.uid.size() <= 128
+        && (!('email' in data) || (data.email is string && data.email.size() <= 200))
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 120))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPlaylist(data, userId, playlistId) {
+      return data.keys().hasAll(['ownerId', 'id', 'name', 'tracks', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'id', 'name', 'description', 'coverUrl', 'tracks', 'createdAt', 'updatedAt'])
+        && data.ownerId is string && data.ownerId == userId && data.ownerId.size() <= 128
+        && data.id is string && data.id == playlistId && isValidId(data.id)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && (!('description' in data) || (data.description is string && data.description.size() <= 400))
+        && (!('coverUrl' in data) || (data.coverUrl is string && data.coverUrl.size() <= 500))
+        && data.tracks is list && data.tracks.size() <= 200
+        && data.createdAt is number
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserVaultMeta(data, userId) {
+      return data.keys().hasAll(['ownerId', 'likedTracks', 'recentTracks', 'streak', 'updatedAt'])
+        && data.keys().hasOnly([
+          'ownerId', 'likedTracks', 'recentTracks', 'streak',
+          'dailyLogs', 'lyricOffsets', 'audioQuality', 'eqPreset',
+          'eqGains', 'lowRamMode', 'updatedAt'
+        ])
+        && data.ownerId is string && data.ownerId == userId && data.ownerId.size() <= 128
+        && data.likedTracks is list && data.likedTracks.size() <= 200
+        && data.recentTracks is list && data.recentTracks.size() <= 50
+        && data.streak is map
+        && (!('dailyLogs' in data) || data.dailyLogs is map)
+        && (!('lyricOffsets' in data) || data.lyricOffsets is map)
+        && (!('audioQuality' in data) || (data.audioQuality is string && data.audioQuality in ['standard', 'high', 'hires', 'flac', 'alac']))
+        && (!('eqPreset' in data) || (data.eqPreset is string && data.eqPreset.size() <= 24))
+        && (!('eqGains' in data) || (data.eqGains is list && data.eqGains.size() == 5))
+        && (!('lowRamMode' in data) || data.lowRamMode is bool)
+        && data.updatedAt is timestamp;
+    }
+
+    // Users private profile (PII isolated to owner)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserAccount(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserAccount(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'displayName', 'updatedAt']);
+      allow delete: if false;
+
+      // Personal Playlists subcollection
+      match /playlists/{playlistId} {
+        allow get: if isValidId(userId) && isValidId(playlistId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(playlistId)
+          && isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && isValidUserPlaylist(incoming(), userId, playlistId)
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(playlistId)
+          && isOwner(userId)
+          && isValidUserPlaylist(incoming(), userId, playlistId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'coverUrl', 'tracks', 'updatedAt']);
+        allow delete: if isValidId(userId) && isValidId(playlistId) && isOwner(userId);
+      }
+
+      // Synced Vault Meta (likedTracks, recentTracks, streak, dailyLogs, settings)
+      match /meta/{metaId} {
+        allow get: if isValidId(userId) && metaId == 'main' && isOwner(userId);
+        allow list: if false;
+        allow create: if isValidId(userId) && metaId == 'main'
+          && isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && isValidUserVaultMeta(incoming(), userId)
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && metaId == 'main'
+          && isOwner(userId)
+          && isValidUserVaultMeta(incoming(), userId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'likedTracks', 'recentTracks', 'streak', 'dailyLogs',
+            'lyricOffsets', 'audioQuality', 'eqPreset', 'eqGains', 'lowRamMode', 'updatedAt'
+          ]);
+        allow delete: if false;
+      }
+    }
+  }
+}

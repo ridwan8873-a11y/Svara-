@@ -1,0 +1,152 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Svara authenticated user profile and sync metadata.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address",
+          "maxLength": 200
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name",
+          "maxLength": 120
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Account creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["uid", "createdAt", "updatedAt"]
+    },
+    "UserPlaylist": {
+      "title": "UserPlaylist",
+      "description": "Personal music playlist synced to the user cloud library.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID",
+          "maxLength": 128
+        },
+        "id": {
+          "type": "string",
+          "description": "Playlist identifier",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Playlist display name",
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "description": "Playlist description",
+          "maxLength": 400
+        },
+        "coverUrl": {
+          "type": "string",
+          "description": "Cover artwork URL",
+          "maxLength": 500
+        },
+        "tracks": {
+          "type": "array",
+          "description": "List of track objects in playlist (max 200)"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Client creation epoch ms"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update"
+        }
+      },
+      "required": ["ownerId", "id", "name", "tracks", "createdAt", "updatedAt"]
+    },
+    "UserVaultMeta": {
+      "title": "UserVaultMeta",
+      "description": "Synced liked tracks, recent tracks, streak, 1-week wrapped logs, and audio preferences.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID",
+          "maxLength": 128
+        },
+        "likedTracks": {
+          "type": "array",
+          "description": "Liked tracks list (max 200)"
+        },
+        "recentTracks": {
+          "type": "array",
+          "description": "Recently played tracks (max 50)"
+        },
+        "streak": {
+          "type": "object",
+          "description": "Daily streak tracking state"
+        },
+        "dailyLogs": {
+          "type": "object",
+          "description": "14-day rolling listening history logs for 1-week Wrapped"
+        },
+        "lyricOffsets": {
+          "type": "object",
+          "description": "Per-track lyric timing offsets in seconds"
+        },
+        "audioQuality": {
+          "type": "string",
+          "enum": ["standard", "high", "hires", "flac", "alac"],
+          "maxLength": 16
+        },
+        "eqPreset": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "eqGains": {
+          "type": "array",
+          "description": "5-band EQ gains"
+        },
+        "lowRamMode": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["ownerId", "likedTracks", "recentTracks", "streak", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Private user account profile isolated to owner."
+    },
+    "/users/{userId}/playlists/{playlistId}": {
+      "schema": { "$ref": "#/entities/UserPlaylist" },
+      "description": "User personal playlists persisted in Firestore."
+    },
+    "/users/{userId}/meta/{metaId}": {
+      "schema": { "$ref": "#/entities/UserVaultMeta" },
+      "description": "User liked tracks, streak, wrapped logs, and settings."
+    }
+  }
+}

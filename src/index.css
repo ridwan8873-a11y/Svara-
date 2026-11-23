@@ -1,0 +1,196 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    --svara-accent: #10B981;
+    --svara-accent-rgb: 16, 185, 129;
+
+    --sv-bg: #f4f5f7;
+    --sv-text: #18181b;
+    --sv-card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(249, 250, 252, 0.98) 100%);
+    --sv-card-shadow: 0 12px 28px -12px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    --sv-thumb: #18181b;
+    --sv-scroll: rgba(15, 23, 42, 0.16);
+    --sv-scroll-hover: rgba(15, 23, 42, 0.28);
+  }
+
+  html.dark {
+    --sv-bg: #09090b;
+    --sv-text: #f4f4f5;
+    --sv-card-bg: linear-gradient(180deg, rgba(22, 22, 27, 0.92) 0%, rgba(15, 15, 19, 0.96) 100%);
+    --sv-card-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --sv-thumb: #fafafa;
+    --sv-scroll: rgba(255, 255, 255, 0.14);
+    --sv-scroll-hover: rgba(255, 255, 255, 0.25);
+  }
+
+  html {
+    font-family: var(--font-body);
+    background-color: var(--sv-bg);
+    color: var(--sv-text);
+    color-scheme: light;
+    transition: background-color 280ms ease, color 280ms ease;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Smooth page enter transition across tabs */
+@keyframes svaraPageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.svara-page-enter {
+  animation: svaraPageEnter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Smooth spinning album disc animation while track is playing */
+@keyframes svaraSpinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.svara-vinyl-spin {
+  animation: svaraSpinSlow 14s linear infinite;
+  animation-play-state: paused;
+  will-change: transform;
+}
+
+.svara-vinyl-spin.is-spinning {
+  animation-play-state: running;
+}
+
+/* Tactile button press and elevated studio surface */
+.svara-press {
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), background-color 180ms ease, border-color 180ms ease, box-shadow 200ms ease;
+}
+
+.svara-press:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.svara-card {
+  background: var(--sv-card-bg);
+  box-shadow: var(--sv-card-shadow);
+  transition: background 260ms ease, box-shadow 260ms ease, border-color 200ms ease;
+}
+
+/* Dynamic accent helpers reacting cleanly to active track or custom theme */
+.svara-accent-text {
+  color: var(--svara-accent);
+  transition: color 450ms ease;
+}
+
+.svara-accent-glow {
+  box-shadow: 0 0 0 1px rgba(var(--svara-accent-rgb), 0.35), 0 12px 28px -10px rgba(var(--svara-accent-rgb), 0.25);
+  transition: box-shadow 450ms ease, border-color 450ms ease;
+}
+
+/* Low-RAM & Reduced Motion mode optimizations */
+html.low-ram * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.low-ram .svara-page-enter,
+html.low-ram .svara-vinyl-spin {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .svara-page-enter,
+  .svara-vinyl-spin {
+    animation: none !important;
+  }
+  .svara-press:active {
+    transform: none !important;
+  }
+}
+
+/* Custom sleek range input for audio scrubbing and EQ */
+input[type="range"].svara-range {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"].svara-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 9999px;
+}
+
+input[type="range"].svara-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 12px;
+  width: 12px;
+  border-radius: 9999px;
+  background: var(--sv-thumb);
+  margin-top: -4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+input[type="range"].svara-range:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+/* Custom thin adaptive scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sv-scroll);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sv-scroll-hover);
+}
+
+/* Hide scrollbars cleanly for horizontal chip/carousel strips */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
